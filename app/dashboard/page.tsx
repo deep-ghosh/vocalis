@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 import {
   Mic,
   Power,
@@ -15,52 +15,195 @@ import {
   Zap,
   Target,
   BarChart3,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Navbar } from "@/components/navbar"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Navbar } from "@/components/navbar";
+import { useRef, useEffect } from "react";
 
-interface UserProfile {
-  name: string
-  avatar: string
-  level: number
-  tasksCompleted: number
-  streak: number
-  preferences: {
-    theme: "dark" | "light" | "auto"
-    voiceEnabled: boolean
-    notifications: boolean
-    language: string
-    voiceSpeed: number
-    autoExecute: boolean
-    soundEffects: boolean
-    highContrast: boolean
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface ISpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => ISpeechRecognition;
+    webkitSpeechRecognition: new () => ISpeechRecognition;
   }
 }
 
+const SpeechToText: React.FC = () => {
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [transcript, setTranscript] = useState<string>("");
+  const [interimTranscript, setInterimTranscript] = useState<string>("");
+  const [isSupported, setIsSupported] = useState<boolean>(false);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+
+  useEffect(() => {
+    // Check if browser supports Speech Recognition
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        setIsSupported(true);
+        recognitionRef.current = new SpeechRecognition();
+
+        // Configure speech recognition
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = "en-US";
+
+        // Handle results
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          let interimText = "";
+          let finalText = "";
+
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              finalText += result[0].transcript;
+            } else {
+              interimText += result[0].transcript;
+            }
+          }
+
+          setTranscript((prev) => prev + finalText);
+          setInterimTranscript(interimText);
+        };
+
+        // Handle errors
+        recognitionRef.current.onerror = (
+          event: SpeechRecognitionErrorEvent
+        ) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        // Handle end
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+          setInterimTranscript("");
+        };
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startListening = (): void => {
+    if (recognitionRef.current && !isListening) {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const stopListening = (): void => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const clearTranscript = (): void => {
+    setTranscript("");
+    setInterimTranscript("");
+  };
+
+  // Function to send text to ElevenLabs TTS (optional)
+  const speakWithElevenLabs = async (text: string): Promise<void> => {
+    try {
+      const response = await fetch("/api/elevenlabs/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.play();
+      }
+    } catch (error) {
+      console.error("Error with ElevenLabs TTS:", error);
+    }
+  };
+
+  if (!isSupported) {
+    return (
+      <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        Speech recognition is not supported in this browser.
+      </div>
+    );
+  }
+
+  return SpeechToText(<></>);
+};
+
+interface UserProfile {
+  name: string;
+  avatar: string;
+  level: number;
+  tasksCompleted: number;
+  streak: number;
+  preferences: {
+    theme: "dark" | "light" | "auto";
+    voiceEnabled: boolean;
+    notifications: boolean;
+    language: string;
+    voiceSpeed: number;
+    autoExecute: boolean;
+    soundEffects: boolean;
+    highContrast: boolean;
+  };
+}
+
 interface RecentTask {
-  id: string
-  title: string
-  type: "git" | "communication" | "documentation" | "deployment"
-  status: "completed" | "in-progress" | "failed"
-  timestamp: string
-  duration: string
+  id: string;
+  title: string;
+  type: "git" | "communication" | "documentation" | "deployment";
+  status: "completed" | "in-progress" | "failed";
+  timestamp: string;
+  duration: string;
 }
 
 interface SystemStatus {
-  service: string
-  status: "online" | "degraded" | "offline"
-  uptime: string
-  responseTime: string
+  service: string;
+  status: "online" | "degraded" | "offline";
+  uptime: string;
+  responseTime: string;
 }
 
 interface TodayProgress {
-  tasksCompleted: number
-  totalTasks: number
-  timesSaved: string
-  successRate: number
+  tasksCompleted: number;
+  totalTasks: number;
+  timesSaved: string;
+  successRate: number;
 }
 
 // Simplified Quick Actions - Clean, icon-based
@@ -97,7 +240,7 @@ const quickActions = [
     bgColor: "bg-orange-500/10",
     borderColor: "border-orange-500/20",
   },
-]
+];
 
 // Streamlined AI Categories - Only 4 essential
 const aiCategories = [
@@ -137,7 +280,7 @@ const aiCategories = [
     status: "online" as const,
     usage: 87,
   },
-]
+];
 
 // Recent Tasks - Show completed work for motivation
 const recentTasks: RecentTask[] = [
@@ -181,7 +324,7 @@ const recentTasks: RecentTask[] = [
     timestamp: "15 minutes ago",
     duration: "2.8s",
   },
-]
+];
 
 // System Status - Professional monitoring
 const systemStatus: SystemStatus[] = [
@@ -209,12 +352,84 @@ const systemStatus: SystemStatus[] = [
     uptime: "98.5%",
     responseTime: "350ms",
   },
-]
+];
 
 export default function DashboardPage() {
-  const [isActive, setIsActive] = useState(true)
-  const [status, setStatus] = useState<"idle" | "listening" | "processing" | "ready">("idle")
-  const [isListening, setIsListening] = useState(false)
+  const [isActive, setIsActive] = useState(true);
+  const [status, setStatus] = useState<
+    "idle" | "listening" | "processing" | "ready"
+  >("idle");
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState<string>("");
+  const [interimTranscript, setInterimTranscript] = useState<string>("");
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = "en-US";
+
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          let interimText = "";
+          let finalText = "";
+
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              finalText += result[0].transcript;
+            } else {
+              interimText += result[0].transcript;
+            }
+          }
+
+          setTranscript((prev) => prev + finalText);
+          setInterimTranscript(interimText);
+        };
+
+        recognitionRef.current.onerror = (
+          event: SpeechRecognitionErrorEvent
+        ) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+          setInterimTranscript("");
+        };
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startListening = (): void => {
+    if (recognitionRef.current && !isListening) {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const stopListening = (): void => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const clearTranscript = (): void => {
+    setTranscript("");
+    setInterimTranscript("");
+  };
 
   const [userProfile] = useState<UserProfile>({
     name: "Alex Chen",
@@ -232,7 +447,7 @@ export default function DashboardPage() {
       soundEffects: true,
       highContrast: false,
     },
-  })
+  });
 
   // Today's Progress - Focus on daily productivity metrics
   const [todayProgress] = useState<TodayProgress>({
@@ -240,112 +455,223 @@ export default function DashboardPage() {
     totalTasks: 15,
     timesSaved: "2.5h",
     successRate: 94,
-  })
+  });
 
   const handlePowerToggle = () => {
-    setIsActive(!isActive)
+    setIsActive(!isActive);
     if (!isActive) {
-      setStatus("idle")
+      setStatus("idle");
     } else {
-      setStatus("idle")
+      setStatus("idle");
     }
-  }
+  };
 
   const handleVoiceToggle = () => {
-    setIsListening(!isListening)
+    setIsListening(!isListening);
     if (!isListening) {
-      setStatus("listening")
+      setStatus("listening");
     } else {
-      setStatus("idle")
+      setStatus("idle");
     }
-  }
+  };
 
   const getStatusText = () => {
-    if (!isActive) return "Assistant is offline - Activate to begin"
+    if (!isActive) return "Assistant is offline - Activate to begin";
 
     switch (status) {
       case "listening":
-        return "I'm listening... speak naturally"
+        return "I'm listening... speak naturally";
       case "processing":
-        return "Processing your request with AI..."
+        return "Processing your request with AI...";
       case "ready":
-        return "Task completed successfully!"
+        return "Task completed successfully!";
       default:
-        return "Ready to assist with DevOps workflows"
+        return "Ready to assist with DevOps workflows";
     }
-  }
+  };
 
   const getStatusColor = () => {
-    if (!isActive) return "text-gray-500"
+    if (!isActive) return "text-gray-500";
 
     switch (status) {
       case "listening":
-        return "text-emerald-400"
+        return "text-emerald-400";
       case "processing":
-        return "text-yellow-400"
+        return "text-yellow-400";
       case "ready":
-        return "text-green-400"
+        return "text-green-400";
       default:
-        return "text-emerald-400"
+        return "text-emerald-400";
     }
-  }
+  };
 
   const getTaskIcon = (type: string) => {
     switch (type) {
       case "git":
-        return GitPullRequest
+        return GitPullRequest;
       case "communication":
-        return Slack
+        return Slack;
       case "documentation":
-        return BookOpen
+        return BookOpen;
       case "deployment":
-        return Rocket
+        return Rocket;
       default:
-        return Activity
+        return Activity;
     }
-  }
+  };
 
   const getTaskColor = (type: string) => {
     switch (type) {
       case "git":
-        return "text-violet-400"
+        return "text-violet-400";
       case "communication":
-        return "text-blue-400"
+        return "text-blue-400";
       case "documentation":
-        return "text-emerald-400"
+        return "text-emerald-400";
       case "deployment":
-        return "text-orange-400"
+        return "text-orange-400";
       default:
-        return "text-gray-400"
+        return "text-gray-400";
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "online":
-        return <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+        return (
+          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+        );
       case "degraded":
-        return <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+        return (
+          <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+        );
       case "offline":
-        return <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+        return <div className="w-2 h-2 bg-red-400 rounded-full"></div>;
       default:
-        return <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+        return <div className="w-2 h-2 bg-gray-400 rounded-full"></div>;
     }
-  }
+  };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "online":
-        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
       case "degraded":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
       case "offline":
-        return "bg-red-500/20 text-red-300 border-red-500/30"
+        return "bg-red-500/20 text-red-300 border-red-500/30";
       default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
+        return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+    }
+  };
+
+  <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <h2 className="text-2xl font-bold mb-4">Speech to Text</h2>
+
+    <div className="flex gap-4 mb-4">
+      <button
+        onClick={startListening}
+        disabled={isListening}
+        className={`px-4 py-2 rounded font-medium ${
+          isListening
+            ? "bg-red-500 text-white cursor-not-allowed"
+            : "bg-blue-500 text-white hover:bg-blue-600"
+        }`}
+      >
+        {isListening ? "Listening..." : "Start Listening"}
+      </button>
+
+      <button
+        onClick={stopListening}
+        disabled={!isListening}
+        className="px-4 py-2 bg-gray-500 text-white rounded font-medium hover:bg-gray-600 disabled:opacity-50"
+      >
+        Stop
+      </button>
+
+      <button
+        onClick={clearTranscript}
+        className="px-4 py-2 bg-red-500 text-white rounded font-medium hover:bg-red-600"
+      >
+        Clear
+      </button>
+    </div>
+
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Final Transcript:
+        </label>
+        <textarea
+          value={transcript}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setTranscript(e.target.value)
+          }
+          className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Your speech will appear here..."
+        />
+      </div>
+
+      {interimTranscript && (
+        <div>
+          <label className="block text-sm font-medium text-gray-500 mb-2">
+            Interim Results:
+          </label>
+          <div className="p-3 bg-gray-100 border rounded-md text-gray-600 italic">
+            {interimTranscript}
+          </div>
+        </div>
+      )}
+
+      {transcript && (
+        <button
+          onClick={() => speakWithElevenLabs(transcript)}
+          className="px-4 py-2 bg-green-500 text-white rounded font-medium hover:bg-green-600"
+        >
+          Speak with ElevenLabs
+        </button>
+      )}
+    </div>
+
+    <div className="mt-4 text-sm text-gray-500">
+      Status:{" "}
+      {isListening ? (
+        <span className="text-red-500 font-medium">🎤 Listening...</span>
+      ) : (
+        <span className="text-gray-500">Ready to listen</span>
+      )}
+    </div>
+  </div>;
+
+  async function speakWithElevenLabs(text: string): Promise<void> {
+    try {
+      const response = await fetch("/api/elevenlabs/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      await audio.play();
+
+      // Clean up the object URL after playback
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+    } catch (error) {
+      console.error("Error with ElevenLabs TTS:", error);
+      // Could add UI notification here for error feedback
     }
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       {/* Animated Background Effects */}
@@ -354,12 +680,15 @@ export default function DashboardPage() {
         <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]"></div>
 
         {/* Floating Particles */}
-        
       </div>
 
       <div className="relative z-10">
         {/* Navbar */}
-        <Navbar isAuthenticated={true} userProfile={userProfile} showSystemStatus={true} />
+        <Navbar
+          isAuthenticated={true}
+          userProfile={userProfile}
+          showSystemStatus={true}
+        />
 
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           {/* Power Control & Voice Interface - Clean and Professional */}
@@ -367,54 +696,107 @@ export default function DashboardPage() {
             <Card className="bg-white/5 border-white/10 backdrop-blur-md p-6 rounded-3xl shadow-2xl">
               <div className="flex items-center space-x-8">
                 {/* Power Button */}
-                <div className="text-center">
-                  <Button
-                    onClick={handlePowerToggle}
-                    className={`w-20 h-20 rounded-full border-4 transition-all duration-500 ${
-                      isActive
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 border-emerald-400 shadow-2xl shadow-emerald-500/50 scale-105"
-                        : "bg-gradient-to-r from-gray-500 to-gray-600 border-gray-400 shadow-lg hover:scale-105"
-                    } backdrop-blur-sm`}
-                  >
-                    <Power className="w-8 h-8" />
-                  </Button>
-                  <p className={`text-sm mt-2 font-medium ${isActive ? "text-emerald-400" : "text-gray-400"}`}>
-                    {isActive ? "Assistant Active" : "Activate Assistant"}
-                  </p>
-                </div>
-
-                <div className="border-l border-white/20 h-16"></div>
 
                 {/* Voice Interface */}
-                <div className="text-center">
-                  <Button
-                    onClick={handleVoiceToggle}
-                    disabled={!isActive}
-                    className={`w-16 h-16 rounded-full transition-all duration-300 ${
-                      isListening
-                        ? "bg-red-500 hover:bg-red-600 shadow-2xl shadow-red-500/50 scale-110"
-                        : "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-xl"
-                    } ${!isActive ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    <Mic className="w-6 h-6" />
-                  </Button>
-                  <p className="text-sm mt-2 font-medium text-violet-400">
-                    {isListening ? "Listening..." : "Voice Command"}
-                  </p>
+
+                <div className="max-w-2xl mx-auto p-6  rounded-lg shadow-lg">
+                  <div className="flex gap-4 mb-4">
+                    <button
+                      onClick={startListening}
+                      disabled={isListening}
+                      className={`px-4 py-2 rounded font-medium ${
+                        isListening
+                          ? "bg-red-500 text-white cursor-not-allowed"
+                          : "bg-blue-500 text-white hover:bg-blue-600"
+                      }`}
+                    >
+                      {isListening ? "Listening..." : "Start Listening"}
+                    </button>
+
+                    <button
+                      onClick={stopListening}
+                      disabled={!isListening}
+                      className="px-4 py-2 bg-gray-500 text-white rounded font-medium hover:bg-gray-600 disabled:opacity-50"
+                    >
+                      Stop
+                    </button>
+
+                    <button
+                      onClick={clearTranscript}
+                      className="px-4 py-2 bg-red-500 text-white rounded font-medium hover:bg-red-600"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-100 mb-2">
+                        Final Transcript:
+                      </label>
+                      <textarea
+                        value={transcript}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                          setTranscript(e.target.value)
+                        }
+                        className="w-full h-32 bg-transparent p-3 border text-white border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Your speech will appear here..."
+                      />
+                    </div>
+
+                    {interimTranscript && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">
+                          Interim Results:
+                        </label>
+                        <div className="p-3 bg-gray-100 border rounded-md text-gray-600 italic">
+                          {interimTranscript}
+                        </div>
+                      </div>
+                    )}
+
+                    {transcript && (
+                      <button
+                        onClick={() => speakWithElevenLabs(transcript)}
+                        className="px-4 py-2 bg-green-500 text-white rounded font-medium hover:bg-green-600"
+                      >
+                        Speak with ElevenLabs
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-4 text-sm text-gray-500">
+                    Status:{" "}
+                    {isListening ? (
+                      <span className="text-red-500 font-medium">
+                        🎤 Listening...
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">Ready to listen</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-l border-white/20 h-16"></div>
 
                 {/* Status Display */}
                 <div className="text-center space-y-2">
-                  <p className={`text-xl font-medium ${getStatusColor()} transition-colors duration-300`}>
+                  <p
+                    className={`text-xl font-medium ${getStatusColor()} transition-colors duration-300`}
+                  >
                     {getStatusText()}
                   </p>
                   <div className="flex items-center space-x-2 justify-center">
-                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 text-xs">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-500/20 text-blue-300 text-xs"
+                    >
                       GPT-4 Turbo
                     </Badge>
-                    <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 text-xs">
+                    <Badge
+                      variant="secondary"
+                      className="bg-purple-500/20 text-purple-300 text-xs"
+                    >
                       DevOps AI
                     </Badge>
                   </div>
@@ -434,8 +816,15 @@ export default function DashboardPage() {
                     <Target className="w-5 h-5 mr-2 text-emerald-400" />
                     Today's Progress
                   </h3>
-                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300 text-xs">
-                    {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500/20 text-emerald-300 text-xs"
+                  >
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -445,20 +834,30 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-sm text-gray-400">Tasks Completed</div>
                     <Progress
-                      value={(todayProgress.tasksCompleted / todayProgress.totalTasks) * 100}
+                      value={
+                        (todayProgress.tasksCompleted /
+                          todayProgress.totalTasks) *
+                        100
+                      }
                       className="h-2 mt-2"
                     />
                   </div>
                   <div className="text-center p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
-                    <div className="text-2xl font-bold text-blue-400 mb-1">{todayProgress.timesSaved}</div>
+                    <div className="text-2xl font-bold text-blue-400 mb-1">
+                      {todayProgress.timesSaved}
+                    </div>
                     <div className="text-sm text-gray-400">Time Saved</div>
                   </div>
                   <div className="text-center p-4 rounded-xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20">
-                    <div className="text-2xl font-bold text-violet-400 mb-1">{todayProgress.successRate}%</div>
+                    <div className="text-2xl font-bold text-violet-400 mb-1">
+                      {todayProgress.successRate}%
+                    </div>
                     <div className="text-sm text-gray-400">Success Rate</div>
                   </div>
                   <div className="text-center p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20">
-                    <div className="text-2xl font-bold text-orange-400 mb-1">{userProfile.streak}</div>
+                    <div className="text-2xl font-bold text-orange-400 mb-1">
+                      {userProfile.streak}
+                    </div>
                     <div className="text-sm text-gray-400">Day Streak</div>
                   </div>
                 </div>
@@ -476,7 +875,9 @@ export default function DashboardPage() {
                       key={index}
                       variant="outline"
                       disabled={!isActive}
-                      className={`h-20 flex-col space-y-2 ${action.bgColor} ${action.borderColor} text-white hover:bg-white/10 group transition-all duration-300 ${
+                      className={`h-20 flex-col space-y-2 ${action.bgColor} ${
+                        action.borderColor
+                      } text-white hover:bg-white/10 group transition-all duration-300 ${
                         !isActive ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
@@ -486,8 +887,12 @@ export default function DashboardPage() {
                         <action.icon className="w-5 h-5 text-white" />
                       </div>
                       <div className="text-center">
-                        <div className="text-sm font-medium">{action.label}</div>
-                        <div className="text-xs text-gray-400">{action.description}</div>
+                        <div className="text-sm font-medium">
+                          {action.label}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {action.description}
+                        </div>
                       </div>
                     </Button>
                   ))}
@@ -502,7 +907,7 @@ export default function DashboardPage() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {aiCategories.map((category) => {
-                    const Icon = category.icon
+                    const Icon = category.icon;
                     return (
                       <Card
                         key={category.id}
@@ -515,8 +920,12 @@ export default function DashboardPage() {
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-semibold text-white">{category.name}</h4>
-                            <p className="text-sm text-gray-400">{category.description}</p>
+                            <h4 className="font-semibold text-white">
+                              {category.name}
+                            </h4>
+                            <p className="text-sm text-gray-400">
+                              {category.description}
+                            </p>
                           </div>
                           <Badge
                             variant="outline"
@@ -527,11 +936,16 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400">Usage</span>
-                          <span className="text-xs font-medium text-white">{category.usage}%</span>
+                          <span className="text-xs font-medium text-white">
+                            {category.usage}%
+                          </span>
                         </div>
-                        <Progress value={category.usage} className="h-1.5 mt-1" />
+                        <Progress
+                          value={category.usage}
+                          className="h-1.5 mt-1"
+                        />
                       </Card>
-                    )
+                    );
                   })}
                 </div>
               </Card>
@@ -547,7 +961,7 @@ export default function DashboardPage() {
                 </h3>
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                   {recentTasks.map((task) => {
-                    const Icon = getTaskIcon(task.type)
+                    const Icon = getTaskIcon(task.type);
                     return (
                       <div
                         key={task.id}
@@ -558,24 +972,34 @@ export default function DashboardPage() {
                             task.type === "git"
                               ? "from-violet-500/20 to-purple-500/20"
                               : task.type === "communication"
-                                ? "from-blue-500/20 to-cyan-500/20"
-                                : task.type === "documentation"
-                                  ? "from-emerald-500/20 to-teal-500/20"
-                                  : "from-orange-500/20 to-red-500/20"
+                              ? "from-blue-500/20 to-cyan-500/20"
+                              : task.type === "documentation"
+                              ? "from-emerald-500/20 to-teal-500/20"
+                              : "from-orange-500/20 to-red-500/20"
                           }`}
                         >
-                          <Icon className={`w-4 h-4 ${getTaskColor(task.type)}`} />
+                          <Icon
+                            className={`w-4 h-4 ${getTaskColor(task.type)}`}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{task.title}</p>
+                          <p className="text-sm font-medium text-white truncate">
+                            {task.title}
+                          </p>
                           <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-xs text-gray-400">{task.timestamp}</span>
-                            <span className="text-xs text-emerald-400">• {task.duration}</span>
-                            {task.status === "completed" && <CheckCircle className="w-3 h-3 text-emerald-400" />}
+                            <span className="text-xs text-gray-400">
+                              {task.timestamp}
+                            </span>
+                            <span className="text-xs text-emerald-400">
+                              • {task.duration}
+                            </span>
+                            {task.status === "completed" && (
+                              <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            )}
                           </div>
                         </div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </Card>
@@ -588,19 +1012,33 @@ export default function DashboardPage() {
                 </h3>
                 <div className="space-y-3">
                   {systemStatus.map((service, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-xl bg-white/5"
+                    >
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(service.status)}
                         <div>
-                          <p className="text-sm font-medium text-white">{service.service}</p>
-                          <p className="text-xs text-gray-400">Uptime: {service.uptime}</p>
+                          <p className="text-sm font-medium text-white">
+                            {service.service}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            Uptime: {service.uptime}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline" className={`text-xs ${getStatusBadgeColor(service.status)}`}>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${getStatusBadgeColor(
+                            service.status
+                          )}`}
+                        >
                           {service.status}
                         </Badge>
-                        <p className="text-xs text-gray-400 mt-1">{service.responseTime}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {service.responseTime}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -617,22 +1055,31 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-400">Tasks Completed</span>
-                      <span className="font-semibold text-white">{userProfile.tasksCompleted}</span>
+                      <span className="font-semibold text-white">
+                        {userProfile.tasksCompleted}
+                      </span>
                     </div>
                     <Progress value={75} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-400">Current Streak</span>
-                      <span className="font-semibold text-white">{userProfile.streak} days</span>
+                      <span className="font-semibold text-white">
+                        {userProfile.streak} days
+                      </span>
                     </div>
                     <Progress value={60} className="h-2" />
                   </div>
                   <div className="flex items-center justify-between pt-2">
-                    <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 text-xs">
+                    <Badge
+                      variant="secondary"
+                      className="bg-yellow-500/20 text-yellow-300 text-xs"
+                    >
                       Level {userProfile.level}
                     </Badge>
-                    <span className="text-xs text-gray-400">Next: Level {userProfile.level + 1}</span>
+                    <span className="text-xs text-gray-400">
+                      Next: Level {userProfile.level + 1}
+                    </span>
                   </div>
                 </div>
               </Card>
@@ -641,11 +1088,15 @@ export default function DashboardPage() {
 
           {/* Professional Focus - Clean tagline */}
           <div className="text-center mt-12">
-            <p className="text-sm text-gray-500 italic mb-2">"Your personal DevOps automation system."</p>
-            <p className="text-xs text-gray-600">Powered by GPT-4 Turbo • Multi-Modal AI • Available 24/7</p>
+            <p className="text-sm text-gray-500 italic mb-2">
+              "Your personal DevOps automation system."
+            </p>
+            <p className="text-xs text-gray-600">
+              Powered by GPT-4 Turbo • Multi-Modal AI • Available 24/7
+            </p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
