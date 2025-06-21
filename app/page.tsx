@@ -1,6 +1,8 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { UserButton, useUser } from "@civic/auth/react"
 import Link from "next/link"
 import {
   Brain,
@@ -28,6 +30,7 @@ import {
   Link2,
   Layers,
   Activity,
+  User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -173,8 +176,38 @@ const getStatusBadgeColor = (status: string) => {
 }
 
 export default function LandingPage() {
-  // Generate particles once with useMemo to avoid hydration issues
+  // Fix the destructuring - use correct property names
+  const { authStatus, isLoading } = useUser()
+  const isLoaded = !isLoading  // When loading is false, then it's loaded
+  const isSignedIn = authStatus === 'authenticated' // Check the actual auth status
+  const router = useRouter()
   const particles = useMemo(() => generateParticles(50), [])
+
+  console.log("Landing Auth Status:", authStatus, "Loading:", isLoading, "Loaded:", isLoaded, "SignedIn:", isSignedIn)
+
+  // Auto-redirect if already authenticated
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.push("/dashboard")
+    }
+  }, [isSignedIn, isLoaded, router])
+
+  // Show loading while checking auth
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if authenticated (will redirect)
+  if (isSignedIn) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-x-hidden">
@@ -201,7 +234,7 @@ export default function LandingPage() {
 
       <div className="relative z-10">
         {/* Navbar */}
-        <Navbar isAuthenticated={false} />
+        <Navbar />
 
         {/* Hero Section */}
         <section className="relative">
@@ -243,7 +276,7 @@ export default function LandingPage() {
                   </div>
                   <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-600/30">
                     <p className="text-lg sm:text-xl text-slate-200 italic">
-                      "Create a PR for the authentication feature, notify the team in Slack, and document it in Notion"
+                      "Add groceries to my Notion shopping list, schedule lunch with Sarah tomorrow at noon, and check if it'll rain this weekend"
                     </p>
                   </div>
                   <div className="flex items-center justify-center mt-4 space-x-2">
@@ -252,22 +285,24 @@ export default function LandingPage() {
                       <span className="text-xs text-slate-400">AI Processing</span>
                     </div>
                     <div className="w-px h-4 bg-slate-600"></div>
-                    <span className="text-xs text-slate-400">~3 seconds execution</span>
-                  </div>
-                </Card>
+                    <span className="text-xs text-slate-400">~2 seconds execution</span>
+                  </div>                </Card>
               </div>
 
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-12 sm:mb-16">
-                <Link href="/auth" className="w-full sm:w-auto">
+              {/* CTA Buttons - Direct Civic Auth integration */}
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-12 sm:mb-16">                <div className="w-full sm:w-auto">
                   <Button
                     size="lg"
+                    onClick={() => {
+                      // Redirect to auth page which will handle the Civic Auth flow
+                      router.push("/auth")
+                    }}
                     className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-emerald-600 hover:from-violet-700 hover:to-emerald-700 text-white font-semibold px-8 py-4 text-base sm:text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-2xl shadow-violet-500/25 border-0"
                   >
                     Start Automating Now
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
-                </Link>
+                </div>
                 <Button
                   size="lg"
                   variant="outline"
