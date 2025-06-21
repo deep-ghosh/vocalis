@@ -1,5 +1,6 @@
-/* @tailwind directives removed because they are not recognized by the current CSS processor.
-   Make sure to use Tailwind CLI or PostCSS with Tailwind if you want to use these directives. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   :root {
