@@ -74,20 +74,18 @@ const SpeechToText: React.FC = () => {
 
         // Handle results
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          let interimText = "";
           let finalText = "";
 
+          // Process only the final results
           for (let i = 0; i < event.results.length; i++) {
             const result = event.results[i];
             if (result.isFinal) {
-              finalText += result[0].transcript;
-            } else {
-              interimText += result[0].transcript;
+              finalText += result[0].transcript + " ";
             }
           }
 
-          setTranscript((prev) => prev + finalText);
-          setInterimTranscript(interimText);
+          // Trim and update the transcript with unique final results
+          setTranscript(finalText.trim());
         };
 
         // Handle errors
@@ -375,20 +373,18 @@ export default function DashboardPage() {
         recognitionRef.current.lang = "en-US";
 
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          let interimText = "";
           let finalText = "";
 
+          // Process only the final results
           for (let i = 0; i < event.results.length; i++) {
             const result = event.results[i];
             if (result.isFinal) {
-              finalText += result[0].transcript;
-            } else {
-              interimText += result[0].transcript;
+              finalText += result[0].transcript + " ";
             }
           }
 
-          setTranscript((prev) => prev + finalText);
-          setInterimTranscript(interimText);
+          // Trim and update the transcript with unique final results
+          setTranscript(finalText.trim());
         };
 
         recognitionRef.current.onerror = (
@@ -590,7 +586,7 @@ export default function DashboardPage() {
       </button>
 
       <button
-        onClick={clearTranscript}
+        onClick={() => clearTranscript}
         className="px-4 py-2 bg-red-500 text-white rounded font-medium hover:bg-red-600"
       >
         Clear
@@ -604,15 +600,15 @@ export default function DashboardPage() {
         </label>
         <textarea
           value={transcript}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-            setTranscript(e.target.value)
-          }
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            setTranscript(e.target.value);
+          }}
           className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="Your speech will appear here..."
         />
       </div>
 
-      {interimTranscript && (
+      {/* {interimTranscript && (
         <div>
           <label className="block text-sm font-medium text-gray-500 mb-2">
             Interim Results:
@@ -621,7 +617,7 @@ export default function DashboardPage() {
             {interimTranscript}
           </div>
         </div>
-      )}
+      )} */}
 
       {transcript && (
         <button
@@ -670,6 +666,30 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error with ElevenLabs TTS:", error);
       // Could add UI notification here for error feedback
+    }
+  }
+  async function fetch_response(input: string) {
+    try {
+      const response = await fetch(
+        "https://thickness-continually-merit-sue.trycloudflare.com/process_text",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: input }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error("Error fetching response:", error);
+      return null;
     }
   }
   return (
@@ -756,12 +776,17 @@ export default function DashboardPage() {
                     )}
 
                     {transcript && (
-                      <button
-                        onClick={() => speakWithElevenLabs(transcript)}
-                        className="px-4 py-2 bg-green-500 text-white rounded font-medium hover:bg-green-600"
-                      >
-                        Speak with ElevenLabs
-                      </button>
+                      <div className="flex gap-2 ">
+                        <button
+                          className="px-4 py-2 bg-green-500 text-white rounded font-medium hover:bg-green-600"
+                          onClick={async () => {
+                            const res = await fetch_response(transcript);
+                            alert(res);
+                          }}
+                        >
+                          Submit
+                        </button>
+                      </div>
                     )}
                   </div>
 
