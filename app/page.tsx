@@ -259,7 +259,7 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-12 sm:mb-16">
-                <Link href="/auth" className="w-full sm:w-auto">
+                <Link href="/dashboard" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-emerald-600 hover:from-violet-700 hover:to-emerald-700 text-white font-semibold px-8 py-4 text-base sm:text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-2xl shadow-violet-500/25 border-0"
@@ -591,7 +591,7 @@ export default function LandingPage() {
                     </div>
 
                     <div className="text-center">
-                      <Link href="/auth">
+                      <Link href="/dashboard">
                         <Button className="w-full bg-gradient-to-r from-violet-600 to-emerald-600 hover:from-violet-700 hover:to-emerald-700 text-white font-semibold py-3 rounded-xl transition-all duration-300 shadow-xl">
                           Try It Now
                           <ArrowRight className="w-5 h-5 ml-2" />
@@ -637,7 +637,7 @@ export default function LandingPage() {
                   deployment, one voice command handles it all.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center max-w-lg mx-auto">
-                  <Link href="/auth" className="flex-1">
+                  <Link href="/dashboard" className="flex-1">
                     <Button
                       size="lg"
                       className="w-full bg-gradient-to-r from-violet-600 to-emerald-600 hover:from-violet-500 hover:to-emerald-500 text-white font-bold px-8 py-4 text-lg rounded-xl transition-all duration-300 shadow-2xl shadow-violet-500/40 border-2 border-violet-400/20 hover:border-violet-400/40 transform hover:scale-105"
@@ -696,7 +696,9 @@ export default function LandingPage() {
                     size="sm"
                     className="text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 p-2"
                   >
+                    <Link href="https://github.com/deep-ghosh/vocalis" className="flex-1">
                     <Github className="w-5 h-5" />
+                       </Link>
                   </Button>
                 </div>
               </div>
@@ -709,7 +711,7 @@ export default function LandingPage() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/auth" className="hover:text-slate-200 transition-colors duration-200">
+                    <Link href="/" className="hover:text-slate-200 transition-colors duration-200">
                       Team Integration
                     </Link>
                   </li>
