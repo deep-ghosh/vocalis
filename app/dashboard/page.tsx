@@ -671,7 +671,7 @@ export default function DashboardPage() {
   async function fetch_response(input: string) {
     try {
       const response = await fetch(
-        "https://thickness-continually-merit-sue.trycloudflare.com/process_text",
+        "https://vocalis-backend.onrender.com/process_text",
         {
           method: "POST",
           headers: {
