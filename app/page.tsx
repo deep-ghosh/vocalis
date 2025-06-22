@@ -259,7 +259,7 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-12 sm:mb-16">
-                <Link href="/auth" className="w-full sm:w-auto">
+                <Link href="/dashboard" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-emerald-600 hover:from-violet-700 hover:to-emerald-700 text-white font-semibold px-8 py-4 text-base sm:text-lg rounded-xl transition-all duration-300 transform hover:scale-105 shadow-2xl shadow-violet-500/25 border-0"
