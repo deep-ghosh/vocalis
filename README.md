@@ -23,8 +23,7 @@ Vocalis is a next-generation platform that lets you control your entire DevOps a
 - **Authentication**: [Civic Auth](https://www.civic.com/)
 - **APIs & Integrations**: GitHub API, Notion API, Slack API, Discord API, Jira API, Linear API
 - **State Management**: React Hooks, Context API
-- **Deployment**: Vercel / Node.js
-- **Security**: SOC 2 compliance, encrypted communications, secure API integrations
+- **Deployment**: Render / Node.js
 
 ---
 
@@ -32,8 +31,6 @@ Vocalis is a next-generation platform that lets you control your entire DevOps a
 
 - **GitHub**: Full Git workflow automation
 - **Notion**: Documentation and knowledge base
-- **Slack & Discord**: Team communication
-- **Jira & Linear**: Project management
 - **Confluence**: Documentation sync
 - **Twitter**: Social updates
 
@@ -52,7 +49,6 @@ Vocalis is a next-generation platform that lets you control your entire DevOps a
 
 - **Civic Auth**: Passwordless, biometric authentication for secure and accessible login
 - **Session Management**: Ensures only authenticated users can execute sensitive commands
-- **SOC 2 Compliance**: Enterprise-ready security standards
 
 ---
 
